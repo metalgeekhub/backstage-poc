@@ -22,6 +22,11 @@ app:
     # Visit data is stored via UserSettings storage if available, otherwise browser localStorage.
     # - api:home/visits: true
     # - app-root-element:home/visit-listener: true
+    # M-1: Tech Insights scorecards on the entity page. This app runs the new
+    # frontend system, so there is no EntityPage.tsx to edit (plan §6a assumes
+    # the old one) - the card is enabled here instead.
+    - entity-card:tech-insights/scorecards
+    - entity-content:tech-insights/scorecards-content
     - home-page-widget:home/toolkit:
         config:
           tools:
@@ -194,6 +199,10 @@ catalog:
     - type: file
       target: ../../examples/entities.yaml
 
+    # M-1 drift probe entity (plan §4)
+    - type: file
+      target: ../../examples/m1-payments-test-repo.yaml
+
     # Local example template
     - type: file
       target: ../../examples/template/template.yaml
@@ -228,3 +237,66 @@ permission:
 mcpActions:
   name: 'My Company Backstage' # defaults to "backstage"
   description: 'Tools for managing your software catalog, creating new services from templates, and exploring your developer portal' # optional
+
+# --- M-1 Backstage validation weekend (plan/m-1-backstage-validation-plan.md) ---
+
+# Harbor connection used by the harborConfigFactRetriever.
+# In-cluster ClusterIP service from infra/harbor (expose.type: clusterIP,
+# expose.clusterIP.name: harbor) - port 80, not 30002.
+devsecops:
+  harbor:
+    baseUrl: ${HARBOR_BASE_URL}
+    username: ${HARBOR_USERNAME}
+    password: ${HARBOR_PASSWORD}
+
+techInsights:
+  factRetrievers:
+    # Built-in, used per plan 6a to prove the wiring before trusting our own.
+    entityOwnershipFactRetriever:
+      cadence: "*/5 * * * *"
+      lifecycle: { maxItems: 10 }
+    # The experiment.
+    harborConfigFactRetriever:
+      cadence: "*/5 * * * *"
+      lifecycle: { maxItems: 10 }
+  factChecker:
+    checks:
+      groupOwnerCheck:
+        type: json-rules-engine
+        name: Group Owner Check
+        description: Verifies that a group has been set as the spec.owner for this entity
+        factIds:
+          - entityOwnershipFactRetriever
+        rule:
+          conditions:
+            all:
+              - fact: hasGroupOwner
+                operator: equal
+                value: true
+      # 6c: `value` is a literal, so it cannot be this entity per-entity
+      # baseline. The retriever does the comparison and this check reads its
+      # verdict - the rules engine is a boolean pass-through here.
+      harborAutoScanDriftCheck:
+        type: json-rules-engine
+        name: Harbor auto_scan matches baseline
+        description: auto_scan in Harbor still equals the value captured at onboarding
+        factIds:
+          - harborConfigFactRetriever
+        rule:
+          conditions:
+            all:
+              - fact: autoScanMatchesBaseline
+                operator: equal
+                value: true
+      harborPublicDriftCheck:
+        type: json-rules-engine
+        name: Harbor public flag matches baseline
+        description: project visibility in Harbor still equals the value captured at onboarding
+        factIds:
+          - harborConfigFactRetriever
+        rule:
+          conditions:
+            all:
+              - fact: publicMatchesBaseline
+                operator: equal
+                value: true

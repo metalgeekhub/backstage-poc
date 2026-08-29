@@ -1,0 +1,24 @@
+{
+  "creation_time": "2026-08-29T15:03:20.365Z",
+  "current_user_role_id": 1,
+  "current_user_role_ids": [
+    1
+  ],
+  "cve_allowlist": {
+    "creation_time": "0001-01-01T00:00:00.000Z",
+    "id": 2,
+    "items": [],
+    "project_id": 2,
+    "update_time": "0001-01-01T00:00:00.000Z"
+  },
+  "metadata": {
+    "auto_scan": "true",
+    "public": "false"
+  },
+  "name": "m1-probe",
+  "owner_id": 1,
+  "owner_name": "admin",
+  "project_id": 2,
+  "repo_count": 0,
+  "update_time": "2026-08-29T15:03:20.365Z"
+}

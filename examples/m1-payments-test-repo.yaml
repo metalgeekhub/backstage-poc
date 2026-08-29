@@ -1,0 +1,20 @@
+# M-1 probe entity. See plan/m-1-backstage-validation-plan.md §4.
+#
+# Registered from a local file rather than a GitHub repo so the experiment is
+# not blocked on repo setup. The consequence is recorded in M-1-FINDINGS.md:
+# the "baseline lives in git, changing it is a reviewable PR" property from §7
+# is asserted, not observed, until this same file is registered from a repo.
+#
+# The devsecops/harbor-baseline annotation stands in for binding.desired_config.
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: payments-test-repo
+  description: M-1 drift probe against the m1-probe Harbor project
+  annotations:
+    harbor.io/project: m1-probe
+    devsecops/harbor-baseline: '{"auto_scan":"true","public":"false"}'
+spec:
+  type: service
+  lifecycle: production
+  owner: guests

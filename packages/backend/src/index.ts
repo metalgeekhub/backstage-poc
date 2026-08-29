@@ -69,4 +69,11 @@ backend.add(import('@backstage/plugin-signals-backend'));
 // mcp actions plugin
 backend.add(import('@backstage/plugin-mcp-actions-backend'));
 
+// tech insights plugin (M-1 drift experiment)
+backend.add(import('@backstage-community/plugin-tech-insights-backend'));
+backend.add(
+  import('@backstage-community/plugin-tech-insights-backend-module-jsonfc'),
+);
+backend.add(import('./modules/techInsightsHarborFactRetriever'));
+
 backend.start();

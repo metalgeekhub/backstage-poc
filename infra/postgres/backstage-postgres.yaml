@@ -1,0 +1,69 @@
+# Postgres for the M-1 Backstage validation weekend.
+# Ephemeral by design: emptyDir, no PVC. It must survive backend restarts
+# (see plan/m-1-backstage-validation-plan.md §3 and §7 "is drift history
+# visible"), not survive the weekend.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backstage-postgres
+  namespace: default
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage-postgres
+  namespace: default
+  labels:
+    app: backstage-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage-postgres
+  template:
+    metadata:
+      labels:
+        app: backstage-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-postgres
+                  key: POSTGRES_PASSWORD
+            # postgres:16 refuses to initdb into a non-empty dir; emptyDir is
+            # mounted with lost+found on some CSI drivers, so use a subdir.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ['pg_isready', '-U', 'postgres']
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-postgres
+  namespace: default
+spec:
+  selector:
+    app: backstage-postgres
+  ports:
+    - port: 5432
+      targetPort: postgres
