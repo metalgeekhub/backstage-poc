@@ -1,0 +1,134 @@
+// .devcontainer/devcontainer.json
+// Kubernetes / IaC operations workstation.
+// Spec reference: https://containers.dev/implementors/json_reference/
+// NOTE: devcontainer.json is JSONC — comments are allowed and are ignored by the parser.
+{
+  "name": "k8s-ops",
+
+  // Debian-based image maintained by the devcontainer project.
+  // Ships git, curl, zsh, sudo and a non-root user called "vscode".
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "remoteUser": "vscode",
+
+  // ---------------------------------------------------------------------
+  // Tooling
+  // Pin every version once you are past evaluation, otherwise you lose the
+  // reproducibility that is the whole point of doing this.
+  // ---------------------------------------------------------------------
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": false,
+      "upgradePackages": true
+    },
+
+    // kubectl + helm. minikube deliberately disabled — see notes below.
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+      "version": "1.31",
+      "helm": "3.16.3",
+      "minikube": "none"
+    },
+
+    "ghcr.io/devcontainers/features/terraform:1": {
+      "version": "1.9.8",
+      "tflint": "latest",
+      "terragrunt": "none"
+    },
+
+    // Node.js toolchain for the app in packages/.
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24",
+      "nodeGypDependencies": true
+    },
+
+    // Cloud CLIs — delete the ones you do not use, each adds build time.
+    // "ghcr.io/devcontainers/features/aws-cli:1": {},
+    // "ghcr.io/devcontainers-extra/features/gcloud-cli:1": {},
+    // "ghcr.io/devcontainers/features/azure-cli:1": {},
+
+    // Mounts the HOST docker socket into the container.
+    // Faster and less fragile than docker-in-docker, but be aware it grants
+    // the container control of your host's Docker daemon.
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": false
+    },
+
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+  },
+
+  // Features are applied in dependency order; this forces common-utils first
+  // so the shell is configured before anything else writes to it.
+  "overrideFeatureInstallOrder": [
+    "ghcr.io/devcontainers/features/common-utils"
+  ],
+
+  // ---------------------------------------------------------------------
+  // Credentials
+  // Read-only host mounts. Never inline a token or kubeconfig in this file —
+  // it lives in git.
+  // The ${localEnv:HOME}${localEnv:USERPROFILE} pair makes this work on both
+  // Unix and Windows hosts: exactly one of the two variables is ever set.
+  // ---------------------------------------------------------------------
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.kube,target=/tmp/.kube-host,type=bind,readonly",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude.json,target=/home/vscode/.claude.json,type=bind"
+    // ,"source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gcloud,target=/home/vscode/.config/gcloud,type=bind,readonly"
+  ],
+
+  "containerEnv": {
+    "KUBECONFIG": "/tmp/.kube-host/config.yaml",
+    "KUBE_EDITOR": "vim"
+  },
+
+  // ---------------------------------------------------------------------
+  // Lifecycle
+  // postCreateCommand runs ONCE at container creation.
+  // Copying the kubeconfig out of the read-only mount keeps
+  // `kubectl config use-context` working.
+  // ---------------------------------------------------------------------
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  // ---------------------------------------------------------------------
+  // Networking
+  // Needed so `kubectl port-forward` inside the container is reachable from
+  // your laptop's browser.
+  // ---------------------------------------------------------------------
+  "forwardPorts": [8080, 9090, 3000],
+  "portsAttributes": {
+    "8080": { "label": "app port-forward", "onAutoForward": "notify" },
+    "9090": { "label": "prometheus", "onAutoForward": "silent" },
+    "3000": { "label": "grafana", "onAutoForward": "silent" }
+  },
+
+  // ---------------------------------------------------------------------
+  // Editor config — travels with the repo.
+  // Personal aliases and prompt belong in a dotfiles repo instead.
+  // ---------------------------------------------------------------------
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "redhat.vscode-yaml",
+        "hashicorp.terraform",
+        "tamasfe.even-better-toml",
+        "timonwong.shellcheck",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "files.trimTrailingWhitespace": true,
+        "yaml.format.enable": true,
+        "editor.formatOnSave": true
+      }
+    }
+  },
+
+  // "hostRequirements": {
+  //   "memory": "6gb"
+  // },
+
+  // Keeps bash/zsh history across rebuilds. Optional but you will miss it
+  // the first time you rebuild without it.
+  "runArgs": ["--name", "k8s-ops-devcontainer"]
+}
